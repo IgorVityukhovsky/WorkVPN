@@ -1,82 +1,59 @@
 import UIKit
 import NetworkExtension
-import OpenVPNAdapter
 
 class ViewController: UIViewController {
 
-    var vpnManager: NETunnelProviderManager!
-
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupVPNManager()
+        startVPN()
     }
 
-    func setupVPNManager() {
-        NETunnelProviderManager.loadAllFromPreferences { [weak self] (managers, error) in
-            if let manager = managers?.first {
-                self?.vpnManager = manager
-            } else {
-                self?.createVPNManager()
-            }
-        }
-    }
-
-    func createVPNManager() {
-        vpnManager = NETunnelProviderManager()
-
-        let tunnelProtocol = NETunnelProviderProtocol()
-        tunnelProtocol.serverAddress = "YOUR_SERVER_ADDRESS"
-        tunnelProtocol.providerBundleIdentifier = "YOUR_PROVIDER_BUNDLE_IDENTIFIER"
-        tunnelProtocol.providerConfiguration = loadOVPNConfiguration()
-
-        vpnManager.protocolConfiguration = tunnelProtocol
-        vpnManager.localizedDescription = "Your VPN"
-        vpnManager.isEnabled = true
-
-        vpnManager.saveToPreferences { [weak self] (error) in
+    func startVPN() {
+        let providerManager = NETunnelProviderManager()
+        providerManager.loadFromPreferences { error in
             if error == nil {
-                self?.startVPNConnection()
-            } else {
-                print("Failed to save VPN configuration: \(error?.localizedDescription ?? "")")
-            }
-        }
-    }
+                let tunnelProtocol = NETunnelProviderProtocol()
+                tunnelProtocol.providerBundleIdentifier = "YOUR_PROVIDER_BUNDLE_IDENTIFIER"
+                tunnelProtocol.serverAddress = "127.0.0.1"
+                tunnelProtocol.providerConfiguration = ["ovpn": self.loadOVPNFileContent()]
 
-    func loadOVPNConfiguration() -> [String: Any] {
-        guard let ovpnFilePath = Bundle.main.path(forResource: "testclient", ofType: "ovpn"),
-              let ovpnContent = try? String(contentsOfFile: ovpnFilePath, encoding: .utf8) else {
-            fatalError("Failed to load OVPN configuration")
-        }
+                providerManager.protocolConfiguration = tunnelProtocol
+                providerManager.localizedDescription = "My VPN"
+                providerManager.isEnabled = true
 
-        return ["ovpn": ovpnContent]
-    }
-
-    func startVPNConnection() {
-        vpnManager.loadFromPreferences { [weak self] (error) in
-            if error == nil {
-                do {
-                    try self?.vpnManager.connection.startVPNTunnel()
-                    print("VPN connection started")
-                } catch {
-                    print("Failed to start VPN connection: \(error.localizedDescription)")
+                providerManager.saveToPreferences { error in
+                    if error == nil {
+                        do {
+                            try providerManager.connection.startVPNTunnel()
+                            // VPN connection started successfully
+                        } catch {
+                            // Failed to start VPN connection
+                            print("Failed to start VPN: \(error)")
+                        }
+                    } else {
+                        // Failed to save VPN configuration
+                        print("Failed to save VPN configuration: \(error)")
+                    }
                 }
             } else {
-                print("Failed to load VPN configuration: \(error?.localizedDescription ?? "")")
+                // Failed to load VPN preferences
+                print("Failed to load VPN preferences: \(error)")
             }
         }
     }
 
-    func stopVPNConnection() {
-        vpnManager.connection.stopVPNTunnel()
-        print("VPN connection stopped")
-    }
+    func loadOVPNFileContent() -> String? {
+        guard let fileURL = Bundle.main.url(forResource: "testclient", withExtension: "ovpn") else {
+            print("OVPN file not found")
+            return nil
+        }
 
-    // Дополнительные методы для тестирования статуса подключения
-    func isConnected() -> Bool {
-        return vpnManager.connection.status == .connected
-    }
-
-    func isDisconnected() -> Bool {
-        return vpnManager.connection.status == .disconnected
+        do {
+            let fileContent = try String(contentsOf: fileURL)
+            return fileContent
+        } catch {
+            print("Failed to read OVPN file: \(error)")
+            return nil
+        }
     }
 }
