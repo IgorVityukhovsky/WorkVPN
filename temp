@@ -1,68 +1,80 @@
-import Foundation
+import UIKit
 import NetworkExtension
 
-func loadOVPNFileContent() -> String? {
-    guard let fileURL = Bundle.main.url(forResource: "testclient", withExtension: "ovpn") else {
-        print("OVPN file not found")
-        return nil
+class ViewController: UIViewController {
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Добавьте необходимые настройки для вашего пользовательского интерфейса
     }
 
-    do {
-        let fileContent = try String(contentsOf: fileURL)
-        return fileContent
-    } catch {
-        print("Error loading OVPN file: \(error)")
-        return nil
+    @IBAction func startButtonTapped(_ sender: UIButton) {
+        // Загрузка содержимого файла .ovpn
+        guard let ovpnContent = loadOVPNFileContent() else {
+            fatalError("Failed to load OVPN file")
+        }
+
+        // Конфигурация и запуск VPN
+        configureVPN()
+
+        // Отображение сообщения об успешном запуске VPN
+        let alertController = UIAlertController(title: "VPN Connection", message: "VPN connection started", preferredStyle: .alert)
+        alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+        present(alertController, animated: true, completion: nil)
     }
-}
 
-func configureVPN() {
-    let vpnManager = NEVPNManager.shared()
-    vpnManager.loadFromPreferences { error in
-        if error == nil {
-            let tunnelProtocol = NEVPNProtocolIPSec()
-            tunnelProtocol.username = "Your VPN Username"
-            tunnelProtocol.passwordReference = "Your VPN Password Reference"
-            tunnelProtocol.serverAddress = "Your VPN Server Address"
-            tunnelProtocol.authenticationMethod = .sharedSecret
-            tunnelProtocol.sharedSecretReference = "Your Shared Secret Reference"
-            tunnelProtocol.disconnectOnSleep = false
+    func loadOVPNFileContent() -> String? {
+        guard let fileURL = Bundle.main.url(forResource: "testclient", withExtension: "ovpn") else {
+            print("OVPN file not found")
+            return nil
+        }
 
-            let vpnSettings = NEVPNProtocolIKEv2()
-            vpnSettings.username = "Your VPN Username"
-            vpnSettings.serverAddress = "Your VPN Server Address"
-            vpnSettings.remoteIdentifier = "Your Remote Identifier"
-            vpnSettings.authenticationMethod = .none
+        do {
+            let fileContent = try String(contentsOf: fileURL)
+            return fileContent
+        } catch {
+            print("Error loading OVPN file: \(error)")
+            return nil
+        }
+    }
 
-            vpnManager.protocolConfiguration = tunnelProtocol
-            vpnManager.localizedDescription = "Your VPN Description"
-            vpnManager.isEnabled = true
+    func configureVPN() {
+        let vpnManager = NEVPNManager.shared()
+        vpnManager.loadFromPreferences { error in
+            if error == nil {
+                let tunnelProtocol = NEVPNProtocolIPSec()
+                tunnelProtocol.username = "Your VPN Username"
+                tunnelProtocol.passwordReference = "Your VPN Password Reference"
+                tunnelProtocol.serverAddress = "Your VPN Server Address"
+                tunnelProtocol.authenticationMethod = .sharedSecret
+                tunnelProtocol.sharedSecretReference = "Your Shared Secret Reference"
+                tunnelProtocol.disconnectOnSleep = false
 
-            vpnManager.saveToPreferences { error in
-                if error == nil {
-                    do {
-                        try vpnManager.connection.startVPNTunnel()
-                        print("VPN connection started")
-                    } catch {
-                        print("Failed to start VPN connection: \(error)")
+                let vpnSettings = NEVPNProtocolIKEv2()
+                vpnSettings.username = "Your VPN Username"
+                vpnSettings.serverAddress = "Your VPN Server Address"
+                vpnSettings.remoteIdentifier = "Your Remote Identifier"
+                vpnSettings.authenticationMethod = .none
+
+                vpnManager.protocolConfiguration = tunnelProtocol
+                vpnManager.localizedDescription = "Your VPN Description"
+                vpnManager.isEnabled = true
+
+                vpnManager.saveToPreferences { error in
+                    if error == nil {
+                        do {
+                            try vpnManager.connection.startVPNTunnel()
+                            print("VPN connection started")
+                        } catch {
+                            print("Failed to start VPN connection: \(error)")
+                        }
+                    } else {
+                        print("Failed to save VPN configuration: \(error)")
                     }
-                } else {
-                    print("Failed to save VPN configuration: \(error)")
                 }
+            } else {
+                print("Failed to load VPN preferences: \(error)")
             }
-        } else {
-            print("Failed to load VPN preferences: \(error)")
         }
     }
 }
-
-// Load OVPN file content
-guard let ovpnContent = loadOVPNFileContent() else {
-    fatalError("Failed to load OVPN file")
-}
-
-// Configure and start VPN
-configureVPN()
-
-// Keep the main thread alive
-RunLoop.main.run()
