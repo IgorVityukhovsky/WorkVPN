@@ -1,0 +1,38 @@
+import UIKit
+import NetworkExtension
+
+class ViewController: UIViewController {
+
+    let vpnManager = NEVPNManager.shared()
+    
+    @IBAction func startVPN(_ sender: UIButton) {
+        startVPN()
+    }
+    
+    func startVPN() {
+        let tunnelProtocol = NETunnelProviderProtocol()
+        tunnelProtocol.providerBundleIdentifier = "com.yourapp.vpnprovider" // Здесь укажите идентификатор вашего VPN-провайдера
+        
+        tunnelProtocol.serverAddress = "89.19.210.61" // Адрес сервера VPN
+        
+        // Установите конфигурационный файл OpenVPN в качестве провайдера
+        tunnelProtocol.providerConfiguration = [
+            "ovpn": "testclient" // Здесь укажите имя вашего конфигурационного файла OpenVPN
+        ]
+        
+        vpnManager.protocolConfiguration = tunnelProtocol
+        
+        vpnManager.loadFromPreferences { error in
+            if error == nil {
+                do {
+                    try self.vpnManager.connection.startVPNTunnel()
+                    print("VPN connection started")
+                } catch let error {
+                    print("Failed to start VPN connection: \(error.localizedDescription)")
+                }
+            } else {
+                print("Failed to load VPN preferences: \(error?.localizedDescription ?? "")")
+            }
+        }
+    }
+}
